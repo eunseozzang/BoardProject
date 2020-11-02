@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="board">
+
+<!-- 	존재하는 모든 게시판 목록 가져오기 -->
+  <select id="showBoard" resultType="BoardTypeVO">
+	SELECT *
+	  FROM boardtype
+  </select>
+  
+  
+  <insert id="createBoard" parameterType="BoardTypeVO">
+  	 insert into boardtype
+  	 values(#{boardname}, #{boarduse},typeno.nextval)
+  </insert>
+  
+  <select id="showUseBoard" resultType="BoardTypeVO">
+	SELECT *
+	  FROM boardtype
+     WHERE boarduse = 0
+  </select>
+  
+  <update id="updateBoard" parameterType="Map">
+  	
+  	UPDATE boardtype
+  	set boarduse = #{use}
+  	where typeno = #{typeno}
+  
+  </update>
+  
+  <select id="selectBoard" resultType="BoardVO" parameterType="int">
+	select * from board where typeno=#{typeno}
+  </select>
+  
+  <select id="selectBoardPageList" resultType="BoardVO" parameterType="PageVO">
+	SELECT *
+   FROM
+   (SELECT ROWNUM rn, a.*
+   FROM
+   (select * from
+   (select CONNECT_BY_ROOT(boardno) groupno, boardno,
+    CASE WHEN boarddel = 1 THEN '삭제된글입니다.' ELSE LPAD('➥',(LEVEL-1)*3,'　') || boardtitle END as boardtitle,
+   userid, boarddate, boarddel
+   from board where typeno = #{typeno}
+   START WITH parentno IS NULL
+   CONNECT BY PRIOR boardno = parentno)
+   order by groupno desc, boardno ASC) a )
+   WHERE rn BETWEEN (#{page} - 1) * #{pageSize} + 1 AND #{page} * #{pageSize}
+  </select>
+  
+  <select id="selectBoardTotalCnt" resultType="int">
+  	SELECT COUNT(*)
+  	FROM board
+  	WHERE typeno = #{typeno}
+  </select>
+
+	<insert id="writeBoard" parameterType="WriteVO">
+	    <selectKey resultType="int" keyProperty="boardno" order="BEFORE">
+	        SELECT boardno.nextval FROM dual
+	    </selectKey>        
+    INSERT INTO board(boardtitle, boardcontent, boarddate, boarddel, userid, boardno, typeno, groupno)
+    VALUES(#{boardtitle}, #{boardcontent}, sysdate, 0, #{userid}, #{boardno}, #{typeno}, #{boardno})
+</insert>
+
+	<insert id="uploadFile" parameterType="FileVO">
+		insert into files
+		values(fileno.nextval , #{filename}, #{filepath}, #{boardno})
+	</insert>
+	
+	<select id="showBoardContent" resultType="BoardVO" parameterType="int">
+		select * from board where boardno = #{boardno}
+	</select>
+	
+	<select id="showFile" resultType="FileVO" parameterType="int">
+		select * from files where boardno = #{boradno}
+	</select>
+	
+	<select id="getFile" resultType="FileVO" parameterType="int">
+		select * from files where fileno = #{fileno}
+	</select>
+	
+	 <update id="deleteBoard" parameterType="int">
+		update board
+		set 	boarddel = 1
+		where boardno = #{boardno}
+ 	 </update>
+  	
+	<select id="gettypeno" resultType="int" parameterType="int">
+	select typeno from board
+	where boardno = #{boardno}
+	</select>  
+	
+	<insert id="writeReply" parameterType="BoardVO">
+	    <selectKey resultType="int" keyProperty="boardno" order="BEFORE">
+	        SELECT boardno.nextval FROM dual
+	    </selectKey>        
+    INSERT INTO board(boardtitle, boardcontent, boarddate, boarddel, userid, boardno, typeno, groupno, parentno)
+    VALUES(#{boardtitle}, #{boardcontent}, sysdate, 0, #{userid}, #{boardno}, #{typeno}, #{groupno}, #{parentno})
+</insert>
+	
+	<insert id="writeComment" parameterType="ReplyVO">
+		insert into reply values(replyno.nextval, sysdate, #{replycontent}, 0, #{userid}, #{boardno})
+	</insert>
+	
+	<select id="showComment" resultType="ReplyVO">
+		select replyno, replydate, CASE WHEN replydel = 1 then '삭제된 댓글입니다.' else replycontent end as replycontent, replydel, userid, boardno from reply where boardno=#{boardno} order by replyno asc
+	</select>
+	
+	<update id="delComment" parameterType="int">
+		update reply set replydel = 1 where replyno = #{replyno}
+	</update>
+	
+	<delete id="fileDelete" parameterType="int">
+		delete from files where fileno = #{fileno}
+	</delete>
+	
+	<update id="updateBoardContent" parameterType="BoardVO">
+		update board set boardtitle = #{boardtitle}, boardcontent = #{boardcontent} where boardno = #{boardno}
+	</update>
+	
+	<select id="boardName" parameterType="int" resultType="String">
+		select boardname from boardtype where typeno = #{typeno}
+	</select>
+	
+	<delete id="fileDeleteAll" parameterType="int">
+		delete from files where boardno = #{boardno}
+	</delete>
+	
+</mapper>
